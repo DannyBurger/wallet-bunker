@@ -1,0 +1,60 @@
+{
+  "name": "wallet-bunker",
+  "version": "1.1.6",
+  "description": "An agile keystore management toolkit",
+  "main": "index.js",
+  "scripts": {
+    "compile": "tsc",
+    "shell": "node ./dist/app/cli.js"
+  },
+  "bin": {
+    "wallet-cli": "bin/wallet-bunker-shell"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@metamask/bip39": "^4.0.0",
+    "@metamask/eth-sig-util": "^4.0.1",
+    "@types/figlet": "^1.5.2",
+    "@types/inquirer": "^9.0.1",
+    "@types/keythereum": "^1.2.1",
+    "@types/node": "^18.7.6",
+    "@types/node-fetch": "^2.6.2",
+    "@types/qs": "^6.9.7",
+    "@types/tunnel": "^0.0.3",
+    "chalk": "4.1.2",
+    "cookie-parser": "~1.4.4",
+    "crypto-js": "^4.1.1",
+    "debug": "~2.6.9",
+    "dotenv": "^16.0.2",
+    "ethereumjs-util": "^7.1.5",
+    "ethereumjs-wallet": "^1.0.2",
+    "ethers": "^5.6.9",
+    "ethers-multicall": "^0.2.3",
+    "express": "~4.16.1",
+    "figlet": "^1.5.2",
+    "http-errors": "~1.6.3",
+    "inquirer": "8.2.4",
+    "keythereum": "^2.0.0",
+    "log4js": "6.5.2",
+    "morgan": "~1.9.1",
+    "pkg": "^5.8.0",
+    "qs": "^6.11.0",
+    "tslib": "^2.4.0",
+    "tslint": "^6.1.3",
+    "tunnel": "^0.0.6",
+    "typescript": "^4.8.2",
+    "web3": "^1.7.3",
+    "ethjs-provider-http": "^0.1.6",
+    "ethjs-query": "^0.3.8"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DannyBurger/wallet-bunker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DannyBurger/wallet-bunker/issues"
+  },
+  "homepage": "https://github.com/DannyBurger/wallet-bunker#readme"
+}
