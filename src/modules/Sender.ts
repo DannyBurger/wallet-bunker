@@ -11,7 +11,7 @@ const getGasPrice = async (rpcUrl: string) => {
 
 const getGasLimit = async (txParams: TxJson, rpcUrl: string) => {
     const gasUtil = new GasUtil(rpcUrl);
-    const bufferedGasLimit = await gasUtil.getBufferedGasLimit(txParams, 1.5);
+    const bufferedGasLimit = await gasUtil.getBufferedGasLimit(txParams, 1.3);
     return Number(bufferedGasLimit.gasLimit.toString());
 }
 
@@ -30,9 +30,6 @@ const sendSignedTx = async (rawTransaction: string, rpcUrl: string) => {
 }
 
 const signAndSendTx = async (txParams: TxJson, rpcUrl: string, keyStorePath: string, password: string) => {
-    if (!('from' in txParams)) {
-        throw new Error('Need from address')
-    }
     txParams.gasLimit = txParams.gasLimit ? txParams.gasLimit : (await getGasLimit(txParams, rpcUrl));
     txParams.gasPrice = txParams.gasPrice ? txParams.gasPrice : (await getGasPrice(rpcUrl));
     const privateKey = getPrivateKeyByAccount(txParams.from, keyStorePath, password)

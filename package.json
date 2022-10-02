@@ -48,7 +48,10 @@
     "ethjs-provider-http": "^0.1.6",
     "ethjs-query": "^0.3.8"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "@types/node": "^18.7.6",
+    "@types/node-fetch": "^2.6.2"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/DannyBurger/wallet-bunker.git"

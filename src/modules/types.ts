@@ -7,7 +7,6 @@ type TxJson = {
     data: string;
 }
 
-
 export {
     TxJson
 }

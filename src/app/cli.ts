@@ -49,7 +49,7 @@ const run = async (password: string, keyStorePath: string, chainType: ChainType)
 
 const main = async () => {
     let packageJson = require('../../package.json');
-    console.log('Version:', packageJson.version);
+    console.log('version:', packageJson.version);
     showIntroduction();
 
     let password: string = ''

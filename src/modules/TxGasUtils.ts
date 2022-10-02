@@ -13,7 +13,7 @@ function hexToBn(inputHex: typeof BN) {
 }
 
 const addHexPrefix = (str: string) => {
-    if (typeof str !== 'string' || str.match(/^-?0x/u)) {
+    if (str.match(/^-?0x/u)) {
         return str;
     }
 
@@ -75,7 +75,7 @@ class GasUtil {
         return await this.query.estimateGas(txParams);
     }
 
-    addGasBuffer(initialGasLimitHex: string, blockGasLimitHex: string, multiplier = 1.5) {
+    addGasBuffer(initialGasLimitHex: string, blockGasLimitHex: string, multiplier = 1.3) {
         const initialGasLimitBn = hexToBn(initialGasLimitHex);
         const blockGasLimitBn = hexToBn(blockGasLimitHex);
         const upperGasLimitBn = blockGasLimitBn.muln(0.9);
