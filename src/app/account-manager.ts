@@ -5,10 +5,10 @@ import { removeAccounts, checkPassword, resetPassword, list, generateAccountByMn
 const showChildrenAccounts = async (keystorePath: string, password: string, accounts: string[], balanceOfList: string[]) => {
     const childrenAccountlist = ['> Back ']
     for (let i = 0; i < accounts.length; i++) {
-        childrenAccountlist.push(`Account: ${accounts[i]} , balanceOf: ${balanceOfList[i]}`);
+        childrenAccountlist.push(`${i}) Account: ${accounts[i]}, Ether balance: ${balanceOfList[i]}`);
     }
     const childrenAccount = await selectAccount(childrenAccountlist);
-    if (childrenAccount === 'Back') {
+    if (!childrenAccount) {
         return;
     }
     const pk = getPrivateKeyByAccount(childrenAccount, keystorePath, password);
@@ -21,12 +21,12 @@ const showAccounts = async (keyStorePath: string, password: string, chainType: C
     if (accountInfos.length === 0) return
     const accountlist = []
     for (const accountInfo of accountInfos) {
-        accountlist.push(`#${accountInfo.id} ${accountInfo.address} children:${accountInfo.children} ${accountInfo.type}`)
+        accountlist.push(`#${accountInfo.id} ${accountInfo.address} children: ${accountInfo.children} ${accountInfo.type}`)
     }
-    let backText = `#${accountInfos[accountInfos.length - 1].id + 1} Back`
+    let backText = `> Back`
     accountlist.push(backText)
     let accountRoot = await selectAccount(accountlist);
-    if (accountRoot === 'Back') {
+    if (!accountRoot) {
         return
     }
     const subAccounts = await getSubAccounts(keyStorePath, accountRoot)
@@ -42,13 +42,13 @@ const showAccounts = async (keyStorePath: string, password: string, chainType: C
 }
 
 const importAccount = async (password: string, keyStorePath: string) => {
-    const manageType = await selectSomething(['1. Mnemonics', '2. PK', '3. Back'])
+    const manageType = await selectSomething(['1. Mnemonics', '2. PrivateKey', '3. Back'])
     if (manageType === '1') {
         const mnemonic = await inputSomething('Please enter a mnemonic [split by space]')
         generateAccountByMnemonic(mnemonic, password, keyStorePath)
     }
     if (manageType === '2') {
-        const pk = await inputSomething('Please enter private key')
+        const pk = await inputSomething('Please enter privatekey')
         generateAccountByPrivateKey(pk, password, keyStorePath)
     }
     if (manageType === '3') {

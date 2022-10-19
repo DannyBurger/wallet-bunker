@@ -51,6 +51,7 @@ const inputPassword = async (text) => {
         {
             name: 'Password',
             type: 'password',
+            mask: '#',
             message: `${text} [Password length >= 6]: `,
         },
     ];
@@ -93,15 +94,16 @@ const selectSomething = async (options) => {
     return inputText.toString();
 };
 exports.selectSomething = selectSomething;
-const selectAccount = async (options) => {
+const selectAccount = async (lines) => {
     const questions = [
         {
             type: 'list',
             name: 'Something',
             message: 'Choose an account',
-            choices: options,
+            choices: lines,
             filter: (val) => {
-                return val.split(' ')[1];
+                let regRes = /0x[0-9a-zA-Z]{40}/g.exec(val);
+                return regRes ? regRes[0] : (void 0);
             },
         },
     ];

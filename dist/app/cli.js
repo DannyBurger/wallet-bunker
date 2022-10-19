@@ -44,7 +44,7 @@ const run = async (password, keyStorePath, chainType) => {
 };
 const main = async () => {
     let packageJson = require('../../package.json');
-    console.log('Version:', packageJson.version);
+    console.log('version:', packageJson.version);
     (0, input_1.showIntroduction)();
     let password = '';
     const keyStorePathAndChainConf = await (0, input_1.getKeystorePathAndChainConf)();
