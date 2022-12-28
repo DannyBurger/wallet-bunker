@@ -1,7 +1,7 @@
 type TxJson = {
     from: string;
     gasPrice?: string;
-    gasLimit?: number;
+    gas?: number;
     nonce?: number;
     to: string;
     data: string;

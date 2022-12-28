@@ -11,12 +11,12 @@ const getGasPrice = async (rpcUrl: string) => {
 
 const getGasLimit = async (txParams: TxJson, rpcUrl: string) => {
     const gasUtil = new GasUtil(rpcUrl);
-    const bufferedGasLimit = await gasUtil.getBufferedGasLimit(txParams, 1.3);
-    return Number(bufferedGasLimit.gasLimit.toString());
+    const bufferedGasLimit = await gasUtil.estimateTxGas(txParams);
+    return Number(bufferedGasLimit);
 }
 
 const getSignedTx = async (txParams: TxJson, account: string, rpcUrl: string, keyStorePath: string, password: string) => {
-    txParams.gasLimit = txParams.gasLimit ? txParams.gasLimit : (await getGasLimit(txParams, rpcUrl));
+    txParams.gas = txParams.gas ? txParams.gas : (await getGasLimit(txParams, rpcUrl));
     txParams.gasPrice = txParams.gasPrice ? txParams.gasPrice : (await getGasPrice(rpcUrl));
     const privateKey = getPrivateKeyByAccount(account, keyStorePath, password)
     const web3 = new Web3(Web3.givenProvider || rpcUrl)
@@ -30,7 +30,7 @@ const sendSignedTx = async (rawTransaction: string, rpcUrl: string) => {
 }
 
 const signAndSendTx = async (txParams: TxJson, rpcUrl: string, keyStorePath: string, password: string) => {
-    txParams.gasLimit = txParams.gasLimit ? txParams.gasLimit : (await getGasLimit(txParams, rpcUrl));
+    txParams.gas = txParams.gas ? txParams.gas : (await getGasLimit(txParams, rpcUrl));
     txParams.gasPrice = txParams.gasPrice ? txParams.gasPrice : (await getGasPrice(rpcUrl));
     const privateKey = getPrivateKeyByAccount(txParams.from, keyStorePath, password)
     const web3 = new Web3(Web3.givenProvider || rpcUrl)

@@ -1,74 +1,97 @@
 import { getBatchBalanceOf } from './Web3'
-import { selectSomething, inputSomething, inputPassword, selectAccount, ChainType } from './input'
+import { selectSomething, inputSomething, inputPassword, ChainType, confirmSomething } from './input'
 import { removeAccounts, checkPassword, resetPassword, list, generateAccountByMnemonic, generateAccountByPrivateKey, expandAccounts, getSubAccounts, getPrivateKeyByAccount } from '../main'
+import inquirer from 'inquirer'
 
-const showChildrenAccounts = async (keystorePath: string, password: string, accounts: string[], balanceOfList: string[]) => {
-    const childrenAccountlist = ['> Back ']
-    for (let i = 0; i < accounts.length; i++) {
-        childrenAccountlist.push(`${i}) Account: ${accounts[i]}, Ether balance: ${balanceOfList[i]}`);
-    }
-    const childrenAccount = await selectAccount(childrenAccountlist);
-    if (!childrenAccount) {
+const showChildrenAccounts = async (id: number, keystorePath: string, password: string, accounts: string[], balanceOfList: string[]) => {
+    if (accounts.length === 0) {
+        console.log('The Length of subAccounts is zero');
         return;
     }
+    const childrenAccountlist: any = ['> Back', new inquirer.Separator(`----Sub accounts of root #${id}----`)];
+    for (let i = 0; i < accounts.length; i++) {
+        childrenAccountlist.push(`${i}) Account: ${accounts[i]}`);
+        // childrenAccountlist.push(`${i}) Account: ${accounts[i]} , balanceOf: ${balanceOfList[i]}`);
+    }
+    const something = await selectSomething(childrenAccountlist);
+    if (something === childrenAccountlist[0]) {
+        return;
+    }
+    const childrenAccount = accounts[childrenAccountlist.indexOf(something) - 2];
     const pk = getPrivateKeyByAccount(childrenAccount, keystorePath, password);
     console.log(`Account: ${childrenAccount}, pk: 0x${pk.toString('hex')}`);
-    await showChildrenAccounts(keystorePath, password, accounts, balanceOfList);
+    await showChildrenAccounts(id, keystorePath, password, accounts, balanceOfList);
 }
 
 const showAccounts = async (keyStorePath: string, password: string, chainType: ChainType) => {
     const accountInfos = list(keyStorePath)
     if (accountInfos.length === 0) return
-    const accountlist = []
+    const options: any = ['> Back', new inquirer.Separator(`----Network: ${chainType.name}----`)];
+    const accountsRoot = [];
     for (const accountInfo of accountInfos) {
-        accountlist.push(`#${accountInfo.id} ${accountInfo.address} children: ${accountInfo.children} ${accountInfo.type}`)
+        accountsRoot.push(accountInfo.address);
+        options.push(`#${accountInfo.id} ${accountInfo.address} children:${accountInfo.children} [${accountInfo.type}]`);
     }
-    let backText = `> Back`
-    accountlist.push(backText)
-    let accountRoot = await selectAccount(accountlist);
-    if (!accountRoot) {
-        return
+    if (options.length === 2) {
+        console.log('accounts is not exist');
+        return;
     }
-    const subAccounts = await getSubAccounts(keyStorePath, accountRoot)
-    const batchBalanceOf = await getBatchBalanceOf(subAccounts, chainType)
+    const _accountRoot = await selectSomething(options);
+    if (_accountRoot === options[0]) {
+        return;
+    }
+    const _accountRootIndex = options.indexOf(_accountRoot) - 2;
+    const accountRoot = accountsRoot[_accountRootIndex];
+    const subAccounts = getSubAccounts(keyStorePath, accountRoot)
     const childrenAccountList = [];
-    const balanceOfList = [];
+    // const balanceOfList = [];
     for (let i = 0; i < subAccounts.length; i++) {
         childrenAccountList.push(subAccounts[i]);
-        balanceOfList.push((Number(batchBalanceOf[i].toString()) / 10 ** 18).toFixed(6));
     }
-    await showChildrenAccounts(keyStorePath, password, childrenAccountList, balanceOfList);
+    // if (childrenAccountList.length > 0) {
+    //     console.log('SubAccounts: ');
+    //     console.log(childrenAccountList.join('\r\n'));
+    // }
+    // const batchBalanceOf = await getBatchBalanceOf(subAccounts, chainType);
+    // for (let i = 0; i < subAccounts.length; i++) {
+    //     balanceOfList.push((Number(batchBalanceOf[i].toString()) / 10 ** 18).toFixed(6));
+    // }
+    // await showChildrenAccounts(_accountRootIndex, keyStorePath, password, childrenAccountList, balanceOfList);
+    await showChildrenAccounts(_accountRootIndex, keyStorePath, password, childrenAccountList, []);
     await showAccounts(keyStorePath, password, chainType);
 }
 
 const importAccount = async (password: string, keyStorePath: string) => {
-    const manageType = await selectSomething(['1. Mnemonics', '2. PrivateKey', '3. Back'])
-    if (manageType === '1') {
-        const mnemonic = await inputSomething('Please enter a mnemonic [split by space]')
+    let options = ['1. Mnemonics', '2. PK', '3. Back'];
+    const manageType = await selectSomething(options)
+    if (manageType === options[0]) {
+        let mnemonic = await inputSomething('Please enter a mnemonic [split by space]')
+        mnemonic = mnemonic.replace(/\s+/g, " ");
         generateAccountByMnemonic(mnemonic, password, keyStorePath)
     }
-    if (manageType === '2') {
-        const pk = await inputSomething('Please enter privatekey')
+    if (manageType === options[1]) {
+        const pk = await inputSomething('Please enter private key')
         generateAccountByPrivateKey(pk, password, keyStorePath)
     }
-    if (manageType === '3') {
+    if (manageType === options[2]) {
         return
     }
     await importAccount(password, keyStorePath)
 }
 
 const accountManage = async (password: string, keyStorePath: string, chainType: ChainType) => {
-    const manageType = await selectSomething(['1. List', '2. Add', '3. Expand', '4. Remove', '5. Back'])
+    let options = ['1. List', '2. Add', '3. Expand', '4. Remove', '5. Reset Password', '6. Back'];
+    const manageType = await selectSomething(options)
 
-    if (manageType === '1') {
+    if (manageType === options[0]) {
         await showAccounts(keyStorePath, password, chainType)
     }
 
-    if (manageType === '2') {
+    if (manageType === options[1]) {
         await importAccount(password, keyStorePath)
     }
 
-    if (manageType === '3') {
+    if (manageType === options[2]) {
         const index = Number(await inputSomething('Input account #'))
         const count = Number(await inputSomething('Expand accounts count'))
         try {
@@ -78,7 +101,7 @@ const accountManage = async (password: string, keyStorePath: string, chainType: 
         }
     }
 
-    if (manageType === '4') {
+    if (manageType === options[3]) {
         const index = Number(await inputSomething('Remove account #'))
         try {
             removeAccounts(index, keyStorePath)
@@ -87,7 +110,16 @@ const accountManage = async (password: string, keyStorePath: string, chainType: 
         }
     }
 
-    if (manageType === '5') {
+    if (manageType === options[4]) {
+        try {
+            await _resetPassword(password, keyStorePath);
+        } catch (err: any) {
+            console.log(err.message)
+        }
+        return
+    }
+
+    if (manageType === options[5]) {
         return
     }
 
@@ -103,8 +135,9 @@ const _resetPassword = async (password: string, keyStorePath: string) => {
         console.log('Password confirm failed, please re-enter')
         await _resetPassword(password, keyStorePath)
     }
-    const toChange = await inputSomething('Confirm [Y/N]')
-    if (toChange === 'Y' || toChange === 'y') {
+
+    const confirmRes = await confirmSomething('Confim');
+    if (confirmRes) {
         await resetPassword(password, password01, keyStorePath)
     }
 }

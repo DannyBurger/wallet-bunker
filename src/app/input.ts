@@ -1,6 +1,6 @@
 /* tslint:disable no-var-requires */
 import chalk from 'chalk'
-import figlet from 'figlet'
+import figlet, { text } from 'figlet'
 import inquirer from 'inquirer'
 import fs from 'fs'
 import * as _PATH_ from 'path'
@@ -11,6 +11,7 @@ const USER_HOME: any = process.env.HOME || process.env.USERPROFILE
 const BASE_PATH = `${USER_HOME}/.wallet-bunker`
 
 type ChainType = {
+    name: string,
     chainId: number;
     rpcUrl: string;
     multicallAddress: string;
@@ -58,18 +59,43 @@ const inputSomething = async (text: string) => {
         },
     ]
     const { inputText } = await inquirer.prompt(questions)
-    return inputText.toString()
+    return inputText.trim().toString()
 }
 
-const selectSomething = async (options: string[]) => {
+const editorSomething = async (text: string) => {
+    const questions = [
+        {
+            name: 'inputText',
+            type: 'editor',
+            message: `${text}: `,
+        },
+    ]
+    const { inputText } = await inquirer.prompt(questions)
+    return inputText.trim().toString()
+}
+
+const confirmSomething = async (text: string) => {
+    const questions = [
+        {
+            name: 'confirmText',
+            type: 'confirm',
+            message: `${text}`,
+        },
+    ]
+    const { confirmText } = await inquirer.prompt(questions)
+    return confirmText
+}
+
+const selectSomething = async (options: string[], message?: string) => {
     const questions = [
         {
             type: 'list',
             name: 'inputText',
-            message: 'Choose an option',
+            message: message || 'Choose an option',
             choices: options,
+            pageSize: 30,
             filter: (val: string) => {
-                return val.split('.')[0]
+                return val;
             },
         },
     ]
@@ -77,24 +103,21 @@ const selectSomething = async (options: string[]) => {
     return inputText.toString()
 }
 
-const selectAccount = async (lines: string[]) => {
+const selectSomethingWithCheckBox = async (options: any[]) => {
     const questions = [
         {
-            type: 'list',
-            name: 'Something',
-            message: 'Choose an account',
-            choices: lines,
-            filter: (val: string) => {
-                let regRes = /0x[0-9a-zA-Z]{40}/g.exec(val)
-                return regRes ? regRes[0] : (void 0)
-            },
+            type: 'checkbox',
+            name: 'checklist',
+            message: 'Choose an option',
+            choices: options,
+            pageSize: 30
         },
     ]
-    const { Something } = await inquirer.prompt(questions)
-    return Something
+    const { checklist } = await inquirer.prompt(questions);
+    return checklist;
 }
 
-const getKeystorePathAndChainConf = async () => {
+const getKeystorePath = async () => {
     let path: string = await inputSomething(`Keystore storage located in (default: ${BASE_PATH})`)
     if (!path) {
         path = BASE_PATH
@@ -105,50 +128,7 @@ const getKeystorePathAndChainConf = async () => {
     if (!exist) {
         fs.mkdirSync(path)
     }
-    const keystoreIds = fs.readdirSync(path)
-    let appIds = ['1. New keystore id']
-    for (let i = 0; i < keystoreIds.length; i++) {
-        appIds.push(`${i + 2}. ${keystoreIds[i]}`)
-    }
-    let selectedAppId = await selectSomething(appIds)
-    let keystoreId
-    if (selectedAppId === '1') {
-        keystoreId = await inputSomething('Enter keystore id')
-    } else {
-        keystoreId = keystoreIds[Number(selectedAppId) - 2]
-    }
-    let appPath = _PATH_.resolve(path, keystoreId)
-    exist = fs.existsSync(appPath)
-    if (!exist) {
-        fs.mkdirSync(appPath)
-    }
-    let chainConfPath = `${appPath}/chain.conf`;
-    exist = fs.existsSync(chainConfPath)
-    if (!exist) {
-        fs.writeFileSync(chainConfPath, JSON.stringify({
-            chainId: null,
-            rpcUrl: null,
-            multicallAddress: null
-        }));
-    }
-    let chainType: ChainType = JSON.parse(fs.readFileSync(chainConfPath).toString());
-    let result = {
-        chainType: chainType,
-        keystorePath: `${appPath}/wallet.json`
-    };
-    if (chainType.chainId && chainType.rpcUrl && chainType.multicallAddress) {
-        console.log(`ChainId: ${chainType.chainId}, RpcUrl: ${chainType.rpcUrl}, MulticallAddress: ${chainType.multicallAddress}`);
-        let toUpdate = await inputSomething('Change prev setting? (default is N)[N/Y]');
-        if (toUpdate !== 'Y' || toUpdate !== 'y') {
-            return result;
-        }
-    }
-    chainType.chainId = await inputSomething('Input ChainId');
-    chainType.rpcUrl = await inputSomething('Input RpcUrl');
-    chainType.multicallAddress = await inputSomething('Input MulticallAddress');
-    fs.writeFileSync(chainConfPath, JSON.stringify(chainType));
-    result.chainType = chainType;
-    return result;
+    return path;
 }
 
-export { showIntroduction, inputPassword, inputSomething, selectSomething, getKeystorePathAndChainConf, selectAccount, ChainType }
+export { showIntroduction, inputPassword, inputSomething, selectSomething, selectSomethingWithCheckBox, confirmSomething, getKeystorePath, ChainType, editorSomething }

@@ -1,7 +1,10 @@
 import { Contract, Provider, setMulticallAddress } from 'ethers-multicall'
 import { ethers } from 'ethers'
+import Web3 from 'web3'
 import { Fragment, JsonFragment } from '@ethersproject/abi'
 import { ChainType } from './input'
+
+const web3 = new Web3(Web3.givenProvider);
 
 const makeMultiCallContract = (contractAbi: JsonFragment[] | string[] | Fragment[], address: string) => {
     const contract = new Contract(address, contractAbi)
@@ -64,4 +67,20 @@ const getBatchBalanceOf = async (accounts: string[], chainType: ChainType) => {
     return callBackList
 }
 
-export { getBatchBalanceOf }
+const getAddressByChecksum = async (address: string) => {
+    const addr = web3.utils.toChecksumAddress(address);
+    return addr;
+}
+
+const getChainId = async (rpcUrl: string) => {
+    const _web3 = new Web3(Web3.givenProvider || rpcUrl);
+    const chainId = await _web3.eth.getChainId();
+    return chainId;
+}
+
+const signMessage = (data: string, privateKey: string) => {
+    const signedData = web3.eth.accounts.sign(data, privateKey);
+    return signedData.signature;
+}
+
+export { getBatchBalanceOf, getAddressByChecksum, getChainId, signMessage }

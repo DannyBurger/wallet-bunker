@@ -1,5 +1,17 @@
-const fs = require('fs')
-const { list, getSubAccounts, generateAccountByMnemonic, generateAccountByPrivateKey, expandAccounts, removeAccounts, checkPassword, getSignedTx, sendSignedTx, signAndSendTx } = require('./dist/main')
+const fs = require('fs');
+const {
+    list,
+    getSubAccounts,
+    getPrivateKeyByAccount,
+    generateAccountByMnemonic,
+    generateAccountByPrivateKey,
+    expandAccounts,
+    removeAccounts,
+    checkPassword,
+    getSignedTx,
+    sendSignedTx,
+    signAndSendTx
+} = require('./dist/main');
 
 class WalletBunker {
     constructor(rpcUrl) {
@@ -24,9 +36,14 @@ class WalletBunker {
         return list(this.walletPath)
     }
 
-    async getSubAccounts(account) {
-        let subAccounts = await getSubAccounts(this.walletPath, account)
+    getSubAccounts(account, startIndex, endIndex) {
+        let subAccounts = getSubAccounts(this.walletPath, account, startIndex, endIndex)
         return subAccounts
+    }
+
+    getPrivateKeyByAccount(account) {
+        let privateKey = getPrivateKeyByAccount(account, this.walletPath, this.password)
+        return privateKey
     }
 
     generateAccountByMnemonic(mnemonic) {

@@ -1,0 +1,4 @@
+src/
+.history/
+node_modules/
+.gitignore

@@ -78,7 +78,11 @@ const checkPassword = (password: string, keyStorePath: string) => {
     checkFileExistence(keyStorePath)
     try {
         const data = fs.readFileSync(keyStorePath)
-        const firstAccount = JSON.parse(data.toString())[0]
+        const accounts = JSON.parse(data.toString());
+        if (accounts.length === 0) {
+            return true;
+        }
+        const firstAccount = accounts[0]
         const keystore = firstAccount.keystoreLst[0]
         const pwd = Buffer.from(password)
         const privateKey = keythereum.recover(pwd, keystore)
@@ -106,14 +110,17 @@ const list = (keyStorePath: string) => {
     return result
 }
 
-const getSubAccounts = async (keyStorePath: string, account: string) => {
+const getSubAccounts = (keyStorePath: string, account: string, startIndex?: number, endIndex?: number) => {
     checkFileExistence(keyStorePath)
     const accounts = getAccounts(keyStorePath)
     for (let i = 0; i < accounts.length; i++) {
         if ('0x' + accounts[i].keystoreLst[0].address === account.toLocaleLowerCase()) {
             const childrenList = []
-            for (const childrenAccount of accounts[i].keystoreLst) {
-                childrenList.push(web3.utils.toChecksumAddress('0x' + childrenAccount.address))
+            const totalSize = accounts[i].keystoreLst.length;
+            endIndex = endIndex && endIndex <= totalSize - 1 ? endIndex : totalSize - 1;
+            startIndex = startIndex && startIndex < endIndex ? startIndex : 0;
+            for (let j = startIndex; j <= endIndex; j++) {
+                childrenList.push(web3.utils.toChecksumAddress('0x' + accounts[i].keystoreLst[j].address))
             }
             return childrenList
         }

@@ -71,7 +71,6 @@ class GasUtil {
     }
 
     async estimateTxGas(txParams: TxJson) {
-        delete txParams.gasPrice;
         return await this.query.estimateGas(txParams);
     }
 
@@ -110,6 +109,11 @@ class GasUtil {
     async getGasPrice() {
         const gasPrice = await this.query.gasPrice();
         return gasPrice;
+    }
+
+    async getTransactionCount(account: string) {
+        const nonce = await this.query.getTransactionCount(account);
+        return nonce;
     }
 }
 
