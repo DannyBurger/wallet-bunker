@@ -1,9 +1,8 @@
-import { getBatchBalanceOf } from './Web3'
-import { selectSomething, inputSomething, inputPassword, ChainType, confirmSomething } from './input'
+import { selectSomething, inputSomething, inputPassword, ChainType, confirmSomething, listWithLazyBalanceLoading } from './input'
 import { removeAccounts, checkPassword, resetPassword, list, generateAccountByMnemonic, generateAccountByPrivateKey, expandAccounts, getSubAccounts, getPrivateKeyByAccount } from '../main'
 import inquirer from 'inquirer'
 
-const showChildrenAccounts = async (id: number, keystorePath: string, password: string, accounts: string[], balanceOfList: string[]) => {
+const showChildrenAccounts = async (id: number, keystorePath: string, password: string, accounts: string[], chainType: ChainType) => {
     if (accounts.length === 0) {
         console.log('The Length of subAccounts is zero');
         return;
@@ -13,14 +12,14 @@ const showChildrenAccounts = async (id: number, keystorePath: string, password: 
         childrenAccountlist.push(`${i}) Account: ${accounts[i]}`);
         // childrenAccountlist.push(`${i}) Account: ${accounts[i]} , balanceOf: ${balanceOfList[i]}`);
     }
-    const something = await selectSomething(childrenAccountlist);
+    const something = await listWithLazyBalanceLoading(childrenAccountlist, 'Select a account', chainType);
     if (something === childrenAccountlist[0]) {
         return;
     }
     const childrenAccount = accounts[childrenAccountlist.indexOf(something) - 2];
     const pk = getPrivateKeyByAccount(childrenAccount, keystorePath, password);
     console.log(`Account: ${childrenAccount}, pk: 0x${pk.toString('hex')}`);
-    await showChildrenAccounts(id, keystorePath, password, accounts, balanceOfList);
+    await showChildrenAccounts(id, keystorePath, password, accounts, chainType);
 }
 
 const showAccounts = async (keyStorePath: string, password: string, chainType: ChainType) => {
@@ -44,20 +43,10 @@ const showAccounts = async (keyStorePath: string, password: string, chainType: C
     const accountRoot = accountsRoot[_accountRootIndex];
     const subAccounts = getSubAccounts(keyStorePath, accountRoot)
     const childrenAccountList = [];
-    // const balanceOfList = [];
     for (let i = 0; i < subAccounts.length; i++) {
         childrenAccountList.push(subAccounts[i]);
     }
-    // if (childrenAccountList.length > 0) {
-    //     console.log('SubAccounts: ');
-    //     console.log(childrenAccountList.join('\r\n'));
-    // }
-    // const batchBalanceOf = await getBatchBalanceOf(subAccounts, chainType);
-    // for (let i = 0; i < subAccounts.length; i++) {
-    //     balanceOfList.push((Number(batchBalanceOf[i].toString()) / 10 ** 18).toFixed(6));
-    // }
-    // await showChildrenAccounts(_accountRootIndex, keyStorePath, password, childrenAccountList, balanceOfList);
-    await showChildrenAccounts(_accountRootIndex, keyStorePath, password, childrenAccountList, []);
+    await showChildrenAccounts(_accountRootIndex, keyStorePath, password, childrenAccountList, chainType);
     await showAccounts(keyStorePath, password, chainType);
 }
 
