@@ -62,12 +62,12 @@ const selectKeyStore = async (keystorePath: string) => {
     const keyStorePathWithId = path.resolve(keystorePath, `${selectedKeystoreId}/wallet.json`);
     const selectedKeystorePassword = await getPasswordWithKeystoreId(selectedKeystoreId, keyStorePathWithId);
 
-    const defaultNetWork = await getDefaultNetWork(keystorePath);
+    const defaultNetWork = await getDefaultNetWork(keystorePath, selectedKeystoreId);
     const chainType: ChainType = {
-        name: defaultNetWork.NAME,
-        chainId: defaultNetWork.ID,
-        rpcUrl: defaultNetWork.RPC,
-        multicallAddress: defaultNetWork.MulticallAddress
+        name: defaultNetWork.name,
+        chainId: defaultNetWork.id,
+        rpcUrl: defaultNetWork.rpcUrl,
+        multicallAddress: defaultNetWork.multicallAddress
     }
     await accountManage(selectedKeystorePassword, keyStorePathWithId, chainType);
 
@@ -89,7 +89,7 @@ const createKeystorePath = async (keystorePath: string) => {
 
 
 const keystoresManager = async (keystorePath: string) => {
-    const keystortOplist = ['> Select a KeyStore ', '> Create a new Keystore', '> Back'];
+    const keystortOplist = ['> Select a KeyStore ', '> Create a New Keystore', '> Back'];
     const something = await selectSomething(keystortOplist);
 
     if (something === keystortOplist[0]) {
@@ -107,8 +107,58 @@ const keystoresManager = async (keystorePath: string) => {
     await keystoresManager(keystorePath);
 }
 
+const updateAccountTag = (keystorePath: string, account: string, tag: string) => {
+    let tagPathName = path.resolve(path.dirname(keystorePath), 'tags.json');
+    let accountTagList: any = [];
+    if (fs.existsSync(tagPathName)) {
+        let accountTagString: any = fs.readFileSync(tagPathName);
+        accountTagList = JSON.parse(accountTagString);
+    }
+
+    let accountTagMap: any = {};
+    for (let i = 0; i < accountTagList.length; i++) {
+        accountTagMap[accountTagList[i].account] = accountTagList[i].tag;
+    }
+
+    accountTagMap[account] = tag;
+    let result: any = [];
+    for (let account in accountTagMap) {
+        result.push({
+            account: account,
+            tag: accountTagMap[account]
+        })
+    }
+    fs.writeFileSync(tagPathName, JSON.stringify(result, null, 4))
+}
+
+const getAccountsTag = (keystorePath: string, accounts: string[]) => {
+    let tagPathName = path.resolve(path.dirname(keystorePath), 'tags.json');
+    let accountTagList: any = [];
+    if (fs.existsSync(tagPathName)) {
+        let accountTagString: any = fs.readFileSync(tagPathName);
+        accountTagList = JSON.parse(accountTagString);
+    }
+
+    let accountTagMap: any = {};
+    for (let i = 0; i < accountTagList.length; i++) {
+        accountTagMap[accountTagList[i].account] = accountTagList[i].tag;
+    }
+
+    let result: any = [];
+    for (let account of accounts) {
+        if (account in accountTagMap) {
+            result.push(accountTagMap[account])
+        } else {
+            result.push(null)
+        }
+    }
+    return result;
+}
+
 export {
     keystoresManager,
     getPasswordWithKeystoreId,
-    checkKeystoreDir
+    checkKeystoreDir,
+    updateAccountTag,
+    getAccountsTag
 }

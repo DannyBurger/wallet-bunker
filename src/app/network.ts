@@ -4,21 +4,47 @@ import inquirer from 'inquirer'
 import { selectSomething, confirmSomething, inputSomething } from './input'
 import { getChainId } from './Web3'
 
-const getDefaultNetWork = async (keystorePath: string) => {
-    const networkSettingPath = path.resolve(keystorePath, 'network.json');
-    const networkSettingPathIsExist = fs.existsSync(networkSettingPath);
-    if (!networkSettingPathIsExist) {
-        fs.writeFileSync(networkSettingPath, JSON.stringify({
-            NAME: '',
-            ID: '',
-            RPC: '',
-            MulticallAddress: '',
-            Symbol: ''
-        }));
+const getDefaultNetWork = async (keystorePath: string, keystoreId: string | null) => {
+    const defaultNetWorkInfo = {
+        name: '',
+        id: '',
+        rpcUrl: '',
+        multicallAddress: '',
+        symbol: ''
+    };
+    let keystoreDefaultNetwork = null;
+
+    if (keystoreId) {
+        const keystorePathConf = path.resolve(keystorePath, `${keystoreId}/configs.json`);
+        const keystoreNetworkConfIsExist = fs.existsSync(keystorePathConf);
+
+        if (keystoreNetworkConfIsExist) {
+            let keystoreConfigsRawInfo = fs.readFileSync(keystorePathConf);
+            let configsInfo = JSON.parse(keystoreConfigsRawInfo.toString());
+            keystoreDefaultNetwork = configsInfo.currenChain;
+        }
     }
-    let networkRawInfo = fs.readFileSync(networkSettingPath);
-    const networkInfo = JSON.parse(networkRawInfo.toString());
-    return networkInfo;
+
+    const configsPath = path.resolve(keystorePath, 'configs.json');
+    const configsPathIsExist = fs.existsSync(configsPath);
+    if (!configsPathIsExist) {
+        return defaultNetWorkInfo;
+    }
+
+    let configsRawInfo = fs.readFileSync(configsPath);
+    const configsInfo = JSON.parse(configsRawInfo.toString());
+
+    let systemDefaultNetworkInfo = null;
+    for (let i = 0; i < configsInfo.networks.length; i++) {
+        if (configsInfo.networks[i].id === keystoreDefaultNetwork) {
+            return configsInfo.networks[i];
+        }
+
+        if (configsInfo.networks[i].id === configsInfo.currenChain) {
+            systemDefaultNetworkInfo = configsInfo.networks[i];
+        }
+    }
+    return systemDefaultNetworkInfo ? systemDefaultNetworkInfo : defaultNetWorkInfo;
 }
 
 const getRpcUrlByChainId = async (text: string, chainId: string) => {
@@ -38,116 +64,121 @@ const getRpcUrlByChainId = async (text: string, chainId: string) => {
 }
 
 const addNetWork = async (keystorePath: string) => {
-    const networkListSettingPath = path.resolve(keystorePath, 'networklist.json');
-    const networkListSettingPathIsExist = fs.existsSync(networkListSettingPath);
-    const defaultNetWork = await getDefaultNetWork(keystorePath);
-    if (!networkListSettingPathIsExist) {
-        fs.writeFileSync(networkListSettingPath, JSON.stringify([]));
+    const configsPath = path.resolve(keystorePath, 'configs.json');
+    const configsPathIsExist = fs.existsSync(configsPath);
+    let configsInfo: any = {};
+    if (configsPathIsExist) {
+        let configsRawInfo = fs.readFileSync(configsPath);
+        configsInfo = JSON.parse(configsRawInfo.toString());
     }
-    let networkListRawInfo = fs.readFileSync(networkListSettingPath);
-    const networkListInfo = JSON.parse(networkListRawInfo.toString());
     const existIds = [];
-    for (let i = 0; i < networkListInfo.length; i++) {
-        existIds.push(networkListInfo[i].ID);
+    for (let i = 0; i < configsInfo.networks.length; i++) {
+        existIds.push(configsInfo.networks[i].id);
     }
+
     console.log('Please Input someting about network');
-    const chainName = await inputSomething('NAME');
-    const chainId = await inputSomething('ID');
+    const chainName = await inputSomething('name');
+    const chainId = await inputSomething('id');
     if (existIds.includes(chainId)) {
         console.log('Chain Id is Exist');
         return;
     }
-    const rpc = await getRpcUrlByChainId('RPC', chainId);
+    const rpc = await getRpcUrlByChainId('rpcUrl', chainId);
     if (!rpc) {
         console.log('rpcUrl is error');
         return;
     };
     const multicallAddress = await inputSomething('Multicall Address');
-    const symbol = await inputSomething('Symbol');
+    const symbol = await inputSomething('symbol');
     const netWorkInfo = {
-        NAME: chainName,
-        ID: chainId,
-        RPC: rpc,
-        MulticallAddress: multicallAddress,
-        Symbol: symbol
+        name: chainName,
+        id: chainId,
+        rpcUrl: rpc,
+        multicallAddress: multicallAddress,
+        symbol: symbol
     };
-    networkListInfo.push(netWorkInfo);
-
-    if (networkListInfo.length === 1 || chainId === defaultNetWork.ID) {
-        const networkSettingPath = path.resolve(keystorePath, 'network.json');
-        fs.writeFileSync(networkSettingPath, JSON.stringify(netWorkInfo));
+    configsInfo.networks.push(netWorkInfo);
+    if (configsInfo.networks.length === 1) {
+        configsInfo.currenChain = chainId;
     }
 
-    fs.writeFileSync(networkListSettingPath, JSON.stringify(networkListInfo));
+    fs.writeFileSync(configsPath, JSON.stringify(configsInfo, null, 4));
 }
 
 const removeNetWork = async (keystorePath: string, network: any) => {
-    const networkListSettingPath = path.resolve(keystorePath, 'networklist.json');
-    const allNetWork = await getAllNetWork(keystorePath);
-    const defaultNetWork = await getDefaultNetWork(keystorePath);
-    if (defaultNetWork.ID === network.ID) {
+    const configsPath = path.resolve(keystorePath, 'configs.json');
+    const configsPathIsExist = fs.existsSync(configsPath);
+    if (!configsPathIsExist) {
+        console.log('No network');
+        return;
+    }
+    let configsRawInfo = fs.readFileSync(configsPath);
+    let configsInfo = JSON.parse(configsRawInfo.toString());
+    if (configsInfo.currenChain === network.id) {
         console.log('Default network cannot be removed');
         return;
     }
-    let confirmRes = await confirmSomething(`Remove NetWork. ChainId is ${network.ID}`);
+    let confirmRes = await confirmSomething(`Remove NetWork. ChainId is ${network.id}`);
     if (!confirmRes) return;
     let newNetworkListInfo = [];
-
-    for (let j = 0; j < allNetWork.length; j++) {
-        if (allNetWork[j].ID !== network.ID) {
-            newNetworkListInfo.push(allNetWork[j]);
+    for (let i = 0; i < configsInfo.networks.length; i++) {
+        if (configsInfo.networks[i].id !== network.id) {
+            newNetworkListInfo.push(configsInfo.networks[i]);
         }
     }
-    fs.writeFileSync(networkListSettingPath, JSON.stringify(newNetworkListInfo));
+    configsInfo.networks = newNetworkListInfo;
+    fs.writeFileSync(configsPath, JSON.stringify(configsInfo, null, 4));
 }
 
 const getAllNetWork = async (keystorePath: string) => {
-    const networkListSettingPath = path.resolve(keystorePath, 'networklist.json');
-    const networkListSettingPathIsExist = fs.existsSync(networkListSettingPath);
-    if (!networkListSettingPathIsExist) {
+    const configsPath = path.resolve(keystorePath, 'configs.json');
+    const configsPathIsExist = fs.existsSync(configsPath);
+    if (!configsPathIsExist) {
         return [];
     }
-    const networkListRawInfo = fs.readFileSync(networkListSettingPath);
-    const networkListInfo = JSON.parse(networkListRawInfo.toString());
-    return networkListInfo;
+    let configsRawInfo = fs.readFileSync(configsPath);
+    let configsInfo = JSON.parse(configsRawInfo.toString());
+    return configsInfo.networks
 }
 
 const editNetWork = async (keystorePath: string, networkListInfo: any, network: any) => {
-    const defaultNetWork = await getDefaultNetWork(keystorePath);
-    const chainName = await inputSomething(`NAME (default: ${network.NAME})`);
-    const chainId = await inputSomething(`ID (default: ${network.ID})`);
-    const rpc = await getRpcUrlByChainId(`RPC (default: ${network.RPC})`, chainId || network.ID);
-    const multicallAddress = await inputSomething(`Multicall Address (default: ${network.MulticallAddress})`);
-    const symbol = await inputSomething(`Symbol (default: ${network.Symbol})`);
+    const configsPath = path.resolve(keystorePath, 'configs.json');
+    const configsPathIsExist = fs.existsSync(configsPath);
+    if (!configsPathIsExist) {
+        console.log('No network');
+        return;
+    }
+    let configsRawInfo = fs.readFileSync(configsPath);
+    let configsInfo = JSON.parse(configsRawInfo.toString());
+
+    const chainName = await inputSomething(`name (default: ${network.name})`);
+    const chainId = await inputSomething(`id (default: ${network.id})`);
+    const rpc = await getRpcUrlByChainId(`rpcUrl (default: ${network.rpcUrl})`, chainId || network.id);
+    const multicallAddress = await inputSomething(`Multicall Address (default: ${network.multicallAddress})`);
+    const symbol = await inputSomething(`symbol (default: ${network.symbol})`);
     let netWorkInfo = {
-        NAME: chainName || network.NAME,
-        ID: chainId || network.ID,
-        RPC: rpc || network.RPC,
-        MulticallAddress: multicallAddress || network.MulticallAddress,
-        Symbol: symbol || network.Symbol
+        name: chainName || network.name,
+        id: chainId || network.id,
+        rpcUrl: rpc || network.rpcUrl,
+        multicallAddress: multicallAddress || network.multicallAddress,
+        symbol: symbol || network.symbol
     };
     for (let i = 0; i < networkListInfo.length; i++) {
-        if (networkListInfo[i].ID === network.ID) {
+        if (networkListInfo[i].id === network.id) {
             networkListInfo[i] = netWorkInfo;
         }
     }
 
-    if (network.ID === defaultNetWork.ID) {
-        const networkSettingPath = path.resolve(keystorePath, 'network.json');
-        fs.writeFileSync(networkSettingPath, JSON.stringify(netWorkInfo));
-    }
-
-    const networkListSettingPath = path.resolve(keystorePath, 'networklist.json');
-    fs.writeFileSync(networkListSettingPath, JSON.stringify(networkListInfo));
+    configsInfo.networks = networkListInfo;
+    fs.writeFileSync(configsPath, JSON.stringify(configsInfo, null, 4));
 }
-
 
 const selectOrEditNetwork = async (keystorePath: string, network: any) => {
     const networkListInfo = await getAllNetWork(keystorePath);
-    const defaultNetWork = await getDefaultNetWork(keystorePath);
+    const defaultNetWork = await getDefaultNetWork(keystorePath, null);
 
     let options;
-    if (defaultNetWork.ID === network.ID) {
+    if (defaultNetWork.id === network.id) {
         options = ['1. Edit', '2. Remove', '3. Back'];
     } else {
         options = ['1. Set as default', '2. Edit', '3. Remove', '4. Back'];
@@ -157,15 +188,11 @@ const selectOrEditNetwork = async (keystorePath: string, network: any) => {
     const optionSize = options.length;
 
     if (optionSize === 4 && something === options[0]) {
-        let defaultNetWorkInfo;
-        for (let i = 0; i < networkListInfo.length; i++) {
-            if (networkListInfo[i].ID === network.ID) {
-                defaultNetWorkInfo = networkListInfo[i];
-            }
-        }
-
-        const networkSettingPath = path.resolve(keystorePath, 'network.json');
-        fs.writeFileSync(networkSettingPath, JSON.stringify(defaultNetWorkInfo));
+        const configsPath = path.resolve(keystorePath, 'configs.json');
+        let configsRawInfo = fs.readFileSync(configsPath);
+        let configsInfo = JSON.parse(configsRawInfo.toString());
+        configsInfo.currenChain = network.id;
+        fs.writeFileSync(configsPath, JSON.stringify(configsInfo, null, 4));
     }
 
     if (something === options[optionSize - 3]) {
@@ -182,7 +209,7 @@ const getDefaultNetWorkList = async (keystorePath: string) => {
     const options: any = ['> Back', new inquirer.Separator(`----Network List----`)];
     for (let i = 0; i < allNetWork.length; i++) {
         let networkInfo = allNetWork[i];
-        let key = `${networkInfo.NAME}\r\n\t-ID:${networkInfo.ID}\r\n\t-RPC: ${networkInfo.RPC}\r\n\t-Multicall Address: ${networkInfo.MulticallAddress}\r\n\t-Symbol: ${networkInfo.Symbol}\r\n`;
+        let key = `${networkInfo.name}\r\n\t-id:${networkInfo.id}\r\n\t-rpcUrl: ${networkInfo.rpcUrl}\r\n\t-Multicall Address: ${networkInfo.multicallAddress}\r\n\t-symbol: ${networkInfo.symbol}\r\n`;
         options.push(key);
     }
 
@@ -197,8 +224,8 @@ const getDefaultNetWorkList = async (keystorePath: string) => {
 }
 
 const getNetWorkInfo = async (keystorePath: string) => {
-    const defaultNetWork = await getDefaultNetWork(keystorePath);
-    const defaultNetWorkMessage = defaultNetWork.NAME ? `> Networks [${defaultNetWork.NAME} ID:${defaultNetWork.ID}]` : '> Networks';
+    const defaultNetWork = await getDefaultNetWork(keystorePath, null);
+    const defaultNetWorkMessage = defaultNetWork.name ? `> Networks [${defaultNetWork.name} id:${defaultNetWork.id}]` : '> Networks';
 
     let allNetWork = await getAllNetWork(keystorePath);
     let networkInfolist;
@@ -224,8 +251,8 @@ const getNetWorkInfo = async (keystorePath: string) => {
     await getNetWorkInfo(keystorePath);
 }
 
-
 export {
     getDefaultNetWork,
-    getNetWorkInfo
+    getNetWorkInfo,
+    getAllNetWork
 }

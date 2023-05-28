@@ -1,6 +1,36 @@
-import { selectSomething, inputSomething, inputPassword, ChainType, confirmSomething, listWithLazyBalanceLoading } from './input'
-import { removeAccounts, checkPassword, resetPassword, list, generateAccountByMnemonic, generateAccountByPrivateKey, expandAccounts, getSubAccounts, getPrivateKeyByAccount } from '../main'
+import { selectSomething, inputSomething, inputPassword, ChainType, confirmSomething, listWithLazyBalanceLoading, setChangedAccount } from './input'
+import { updateAccountBalanceOf } from './Web3';
+import { updateAccountTag, getAccountsTag } from './keystore';
+import { removeAccounts, checkPassword, resetPassword, list, generateAccountByMnemonic, generateAccountByPrivateKey, expandAccounts, getSubAccounts, getPrivateKeyByAccount, } from '../main'
+import { getAllNetWork, getDefaultNetWork } from './network';
 import inquirer from 'inquirer'
+import path from 'path';
+import fs from 'fs';
+
+var defaultAccount: any = null;
+
+const showAccountDetailInfo = async (account: string, chainType: ChainType, keystorePath: string, password: string) => {
+    const optionList = ['> Add Tag', '> Show Private Key', '> Refresh Balance', '> Back'];
+    const something = await selectSomething(optionList);
+    if (something === optionList[0]) {
+        let tag: any = await inputSomething('Input account tag')
+        updateAccountTag(keystorePath, account, tag);
+        await setChangedAccount(account);
+    }
+    if (something === optionList[1]) {
+        const pk = getPrivateKeyByAccount(account, keystorePath, password);
+        console.log(`Account: ${account}, pk: 0x${pk.toString('hex')}`);
+    }
+    if (something === optionList[2]) {
+        await updateAccountBalanceOf(account, chainType);
+        await setChangedAccount(account);
+        return
+    }
+    if (something === optionList[3]) {
+        return
+    }
+    await showAccountDetailInfo(account, chainType, keystorePath, password);
+}
 
 const showChildrenAccounts = async (id: number, keystorePath: string, password: string, accounts: string[], chainType: ChainType) => {
     if (accounts.length === 0) {
@@ -8,17 +38,25 @@ const showChildrenAccounts = async (id: number, keystorePath: string, password: 
         return;
     }
     const childrenAccountlist: any = ['> Back', new inquirer.Separator(`----Sub accounts of root #${id}----`)];
+    let accountTagList = getAccountsTag(keystorePath, accounts);
     for (let i = 0; i < accounts.length; i++) {
-        childrenAccountlist.push(`${i}) Account: ${accounts[i]}`);
-        // childrenAccountlist.push(`${i}) Account: ${accounts[i]} , balanceOf: ${balanceOfList[i]}`);
+        if (accountTagList[i]) {
+            childrenAccountlist.push(`${i}) Account: ${accounts[i]}, tag: ${accountTagList[i]}`);
+        } else {
+            childrenAccountlist.push(`${i}) Account: ${accounts[i]}`);
+        }
+        if (i === Number(defaultAccount)) {
+            defaultAccount = childrenAccountlist[i + 2];
+        }
     }
-    const something = await listWithLazyBalanceLoading(childrenAccountlist, 'Select a account', chainType);
+    const _defaultAccount = defaultAccount ? defaultAccount : childrenAccountlist[0];
+    const something = await listWithLazyBalanceLoading(childrenAccountlist, keystorePath, 'Select a account', chainType, _defaultAccount);
     if (something === childrenAccountlist[0]) {
         return;
     }
+    defaultAccount = something.split(')')[0];
     const childrenAccount = accounts[childrenAccountlist.indexOf(something) - 2];
-    const pk = getPrivateKeyByAccount(childrenAccount, keystorePath, password);
-    console.log(`Account: ${childrenAccount}, pk: 0x${pk.toString('hex')}`);
+    await showAccountDetailInfo(childrenAccount, chainType, keystorePath, password);
     await showChildrenAccounts(id, keystorePath, password, accounts, chainType);
 }
 
@@ -68,8 +106,41 @@ const importAccount = async (password: string, keyStorePath: string) => {
     await importAccount(password, keyStorePath)
 }
 
+const _switchNetwork = async (keyStorePath: string) => {
+    const keystoreBasePath = path.dirname(keyStorePath);
+    const keystoreParseInfo = path.parse(keystoreBasePath);
+    const keystoreDirPath = keystoreParseInfo.dir;
+    const allNetWork = await getAllNetWork(keystoreDirPath);
+    let networkList = ['Same as system', new inquirer.Separator(`--------------------------`)];
+    let defaultOption = networkList[0];
+    let keystoreConfPath = path.resolve(keystoreBasePath, 'configs.json');
+    const isExistKeystoreConf = fs.existsSync(keystoreConfPath);
+    let chainId = null;
+    if (isExistKeystoreConf) {
+        const keystoreConfRaw = fs.readFileSync(keystoreConfPath);
+        chainId = (JSON.parse(keystoreConfRaw.toString())).currenChain;
+    }
+
+    for (let i = 0; i < allNetWork.length; i++) {
+        if (chainId === allNetWork[i].id) {
+            defaultOption = `${i + 1}. ${allNetWork[i].name}[id:${allNetWork[i].id}]`;
+        }
+        networkList.push(`${i + 1}. ${allNetWork[i].name}[id:${allNetWork[i].id}]`)
+    }
+
+    const something = await selectSomething(networkList, undefined, defaultOption);
+    let defaultResult: any = {};
+    let selectedIndex = networkList.indexOf(something);
+    if (selectedIndex > 1) {
+        defaultResult["currenChain"] = allNetWork[selectedIndex - 2].id;
+    }
+
+    fs.writeFileSync(keystoreConfPath, JSON.stringify(defaultResult, null, 4));
+}
+
 const accountManage = async (password: string, keyStorePath: string, chainType: ChainType) => {
-    let options = ['1. List', '2. Add', '3. Expand', '4. Remove', '5. Reset Password', '6. Back'];
+    
+    let options = ['1. List', '2. Add', '3. Expand', '4. Remove', '5. Reset Password', `6. Switch Network [${chainType.name} id:${chainType.chainId}]`, '7. Back'];
     const manageType = await selectSomething(options)
 
     if (manageType === options[0]) {
@@ -109,6 +180,22 @@ const accountManage = async (password: string, keyStorePath: string, chainType: 
     }
 
     if (manageType === options[5]) {
+        try {
+            await _switchNetwork(keyStorePath);
+            const keystoreParseInfo = path.parse(path.dirname(keyStorePath));
+            const defaultNetWork = await getDefaultNetWork(keystoreParseInfo.dir, keystoreParseInfo.name);
+            chainType = {
+                name: defaultNetWork.name,
+                chainId: defaultNetWork.id,
+                rpcUrl: defaultNetWork.rpcUrl,
+                multicallAddress: defaultNetWork.multicallAddress
+            }
+        } catch (err: any) {
+            console.log(err.message)
+        }
+    }
+
+    if (manageType === options[6]) {
         return
     }
 

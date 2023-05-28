@@ -6,10 +6,12 @@ import fs from 'fs'
 import * as _PATH_ from 'path'
 import * as dotenv from 'dotenv';
 import { getBatchBalanceOf } from './Web3'
+import { getAccountsTag } from './keystore';
 dotenv.config();
 
 const USER_HOME: any = process.env.HOME || process.env.USERPROFILE
 const BASE_PATH = `${USER_HOME}/.wallet-bunker`
+const changedAccounts: any = {};
 
 type ChainType = {
     name: string,
@@ -37,7 +39,7 @@ const inputPassword = async (text: string) => {
             name: 'Password',
             type: 'password',
             mask: '#',
-            message: `${text} [Password length >= 6]: `,
+            message: `${text}: `,
         },
     ]
     while (true) {
@@ -61,6 +63,20 @@ const inputSomething = async (text: string) => {
     ]
     const { inputText } = await inquirer.prompt(questions)
     return inputText.trim().toString()
+}
+
+const getDataPath = async (message: string) => {
+    for (let i = 0; i < 5; i++) {
+        let dataPath = await inputSomething(message);
+        dataPath = dataPath.trim();
+        if (fs.existsSync(dataPath)) {
+            return dataPath;
+        };
+
+        console.log(`${message}: ${dataPath} is Invalid`)
+    }
+    console.log('Too many attempts, exit');
+    return null;
 }
 
 const editorSomething = async (text: string) => {
@@ -87,12 +103,13 @@ const confirmSomething = async (text: string) => {
     return confirmText
 }
 
-const selectSomething = async (options: string[], message?: string) => {
+const selectSomething = async (options: any[], message?: string, _default?:any) => {
     const questions = [
         {
             type: 'list',
             name: 'inputText',
             message: message || 'Choose an option',
+            default: _default,
             choices: options,
             pageSize: 30,
             filter: (val: string) => {
@@ -138,7 +155,7 @@ async function getBalanceOf(accounts: string[], accountBalanceOfMap: any, chainT
     return result;
 }
 
-const listWithLazyBalanceLoading = async (options: string[], message?: string, chainType?: any) => {
+const listWithLazyBalanceLoading = async (options: string[], keystorePath: string, message?: string, chainType?: any, defaultAccount?: any) => {
     const questions = [
         {
             type: 'list',
@@ -146,6 +163,7 @@ const listWithLazyBalanceLoading = async (options: string[], message?: string, c
             message: message || 'Choose an option',
             choices: options,
             pageSize: 30,
+            default: defaultAccount,
             filter: (val: string) => {
                 return val;
             },
@@ -154,11 +172,16 @@ const listWithLazyBalanceLoading = async (options: string[], message?: string, c
 
     const promise: any = inquirer.prompt(questions);
 
+    let selected;
     let accountBalanceOfMap: any = {};
     while (!promise.ui.activePrompt.answers[promise.ui.activePrompt.opt.name]) {
         await sleep(3000);
 
-        const selected = promise.ui.activePrompt.selected;
+        if (selected === promise.ui.activePrompt.selected) {
+            continue;
+        }
+        selected = promise.ui.activePrompt.selected;
+
         const pageSize = promise.ui.activePrompt.opt.pageSize;
 
         let accounts = [];
@@ -167,7 +190,7 @@ const listWithLazyBalanceLoading = async (options: string[], message?: string, c
                 accounts.push(null);
                 continue;
             }
-            let account = /0x[0-9a-fA-f]{40}/g.exec(promise.ui.activePrompt.opt.choices.choices[i].name);
+            let account = /0x[0-9a-fA-f]{40}/.exec(promise.ui.activePrompt.opt.choices.choices[i].name);
             if (account) {
                 accounts.push(account[0])
             } else {
@@ -204,9 +227,17 @@ const listWithLazyBalanceLoading = async (options: string[], message?: string, c
                 continue;
             }
             let name = _choice.name;
-            if (name.indexOf('balanceOf') === -1 && batchBalanceOf[i - fromIndex]) {
+            if ((name.indexOf('balanceOf') === -1 && batchBalanceOf[i - fromIndex]) || ((activeAccount[i - fromIndex] in changedAccounts) && changedAccounts[activeAccount[i - fromIndex]])) {
                 accountBalanceOfMap[activeAccount[i - fromIndex]] = batchBalanceOf[i - fromIndex];
-                promise.ui.activePrompt.opt.choices.choices[_index].name = name + `, balanceOf: ${batchBalanceOf[i - fromIndex]}`;
+                let gasName = chainType.chainId === "97" || chainType.chainId === "56" ? 'BNB' : 'ETH';
+                if (name.indexOf('tag') > -1) {
+                    let nameList = name.split(', tag');
+                    promise.ui.activePrompt.opt.choices.choices[_index].name = nameList[0] + `, ${gasName}: ${batchBalanceOf[i - fromIndex]}` + `, tag${nameList[1]}`;
+
+                } else {
+                    promise.ui.activePrompt.opt.choices.choices[_index].name = name + `, ${gasName}: ${batchBalanceOf[i - fromIndex]}`;
+                }
+                changedAccounts[activeAccount[i - fromIndex]] = false;
             }
         }
         promise.ui.activePrompt.screen.render('');
@@ -243,4 +274,8 @@ const getKeystorePath = async () => {
     return path;
 }
 
-export { showIntroduction, inputPassword, inputSomething, selectSomething, selectSomethingWithCheckBox, confirmSomething, getKeystorePath, ChainType, editorSomething, listWithLazyBalanceLoading }
+const setChangedAccount = async (account: string) => {
+    changedAccounts[account] = true;
+}
+
+export { showIntroduction, inputPassword, inputSomething, selectSomething, selectSomethingWithCheckBox, confirmSomething, getKeystorePath, ChainType, editorSomething, listWithLazyBalanceLoading, setChangedAccount, getDataPath }

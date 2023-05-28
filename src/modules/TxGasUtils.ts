@@ -1,12 +1,12 @@
-const HttpProvider = require('ethjs-provider-http');
-const EthQuery = require('ethjs-query');
 const {
     BN
 } = require('bn.js');
 const {
     stripHexPrefix
 } = require('ethereumjs-util');
+const { BigNumber } = require('bignumber.js');
 import { TxJson } from './types';
+import Web3 from 'web3';
 
 function hexToBn(inputHex: typeof BN) {
     return new BN(stripHexPrefix(inputHex.toString('hex')), 16);
@@ -39,13 +39,13 @@ function bnToHex(inputBn: typeof BN) {
 }
 
 class GasUtil {
-    query: typeof EthQuery;
+    query: any;
     constructor(rpcUrl: string) {
-        this.query = new EthQuery(new HttpProvider(rpcUrl));
+        this.query = (new Web3(Web3.givenProvider || rpcUrl)).eth;
     }
 
     async analyzeGasUsage(txParams: TxJson) {
-        const block = await this.query.getBlockByNumber('latest', false);
+        const block = await this.query.getBlock('latest', false);
         const blockGasLimitBN = hexToBn(block.gasLimit);
         const saferGasLimitBN = BnMultiplyByFraction(blockGasLimitBN, 19, 20);
         let estimatedGasHex = bnToHex(saferGasLimitBN);
@@ -71,7 +71,9 @@ class GasUtil {
     }
 
     async estimateTxGas(txParams: TxJson) {
-        return await this.query.estimateGas(txParams);
+        let gasLimit = await this.query.estimateGas(txParams);
+        gasLimit = (new BigNumber(gasLimit.toString())).multipliedBy(1.3).toFixed(0);
+        return gasLimit;
     }
 
     addGasBuffer(initialGasLimitHex: string, blockGasLimitHex: string, multiplier = 1.3) {
@@ -107,7 +109,7 @@ class GasUtil {
     }
 
     async getGasPrice() {
-        const gasPrice = await this.query.gasPrice();
+        const gasPrice = await this.query.getGasPrice();
         return gasPrice;
     }
 

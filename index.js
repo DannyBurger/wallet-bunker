@@ -19,6 +19,7 @@ class WalletBunker {
     }
 
     unlock(appId, keystorePath, password) {
+        appId = appId.trim();
         const appPath = `${keystorePath}/${appId}`
         let exist = fs.existsSync(appPath)
         if (!exist) {

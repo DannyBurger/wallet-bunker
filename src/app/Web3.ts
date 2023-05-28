@@ -5,6 +5,7 @@ import { Fragment, JsonFragment } from '@ethersproject/abi'
 import { ChainType } from './input'
 
 const web3 = new Web3(Web3.givenProvider);
+const accountsBalanceOfMap: any = {};
 
 const makeMultiCallContract = (contractAbi: JsonFragment[] | string[] | Fragment[], address: string) => {
     const contract = new Contract(address, contractAbi)
@@ -35,6 +36,9 @@ const batchEthCall = async (chainId: string, multicallAddress: string, rpcUrl: s
 }
 
 const getBatchBalanceOf = async (accounts: string[], chainType: ChainType) => {
+    if (!(chainType.chainId in accountsBalanceOfMap)) {
+        accountsBalanceOfMap[chainType.chainId] = {};
+    }
     const ethCallList = []
     const multiCallContract = makeMultiCallContract(
         [
@@ -60,11 +64,24 @@ const getBatchBalanceOf = async (accounts: string[], chainType: ChainType) => {
         ],
         chainType.multicallAddress
     )
+    let updateAccounts = [];
     for (const account of accounts) {
-        ethCallList.push(multiCallContract.getEthBalance(account))
+        if (!(account in accountsBalanceOfMap[chainType.chainId])) {
+            updateAccounts.push(account);
+            ethCallList.push(multiCallContract.getEthBalance(account))
+        }
     }
-    const callBackList = await batchEthCall(chainType.chainId.toString(), chainType.multicallAddress, chainType.rpcUrl, ethCallList)
-    return callBackList
+    if (updateAccounts.length > 0) {
+        const callBackList = await batchEthCall(chainType.chainId.toString(), chainType.multicallAddress, chainType.rpcUrl, ethCallList)
+        for (let i = 0; i < updateAccounts.length; i++) {
+            accountsBalanceOfMap[chainType.chainId][updateAccounts[i]] = callBackList[i];
+        }
+    }
+    let result = [];
+    for (const account of accounts) {
+        result.push(accountsBalanceOfMap[chainType.chainId][account]);
+    }
+    return result
 }
 
 const getAddressByChecksum = async (address: string) => {
@@ -83,4 +100,10 @@ const signMessage = (data: string, privateKey: string) => {
     return signedData.signature;
 }
 
-export { getBatchBalanceOf, getAddressByChecksum, getChainId, signMessage }
+const updateAccountBalanceOf = async (account: string, chainType: ChainType) => {
+    let _web3 = new Web3(Web3.givenProvider || chainType.rpcUrl);
+    const _balance = await _web3.eth.getBalance(account);
+    accountsBalanceOfMap[chainType.chainId][account] = _balance;
+}
+
+export { getBatchBalanceOf, getAddressByChecksum, getChainId, signMessage, updateAccountBalanceOf }
