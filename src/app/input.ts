@@ -103,7 +103,7 @@ const confirmSomething = async (text: string) => {
     return confirmText
 }
 
-const selectSomething = async (options: any[], message?: string, _default?:any) => {
+const selectSomething = async (options: any[], message?: string, _default?: any) => {
     const questions = [
         {
             type: 'list',
@@ -172,16 +172,30 @@ const listWithLazyBalanceLoading = async (options: string[], keystorePath: strin
 
     const promise: any = inquirer.prompt(questions);
 
-    let selected;
+    let selected = 0;
+    let round = 0;
+    let preSelected;
     let accountBalanceOfMap: any = {};
     while (!promise.ui.activePrompt.answers[promise.ui.activePrompt.opt.name]) {
-        await sleep(3000);
 
-        if (selected === promise.ui.activePrompt.selected) {
+        await sleep(2000);
+
+        if (preSelected === promise.ui.activePrompt.selected) {
             continue;
         }
-        selected = promise.ui.activePrompt.selected;
 
+        if (selected === promise.ui.activePrompt.selected) {
+            round = round + 1;
+        } else {
+            round = 0;
+            selected = promise.ui.activePrompt.selected;
+        }
+
+        if (round < 5) {
+            continue;
+        }
+
+        round = 0;
         const pageSize = promise.ui.activePrompt.opt.pageSize;
 
         let accounts = [];
@@ -242,6 +256,7 @@ const listWithLazyBalanceLoading = async (options: string[], keystorePath: strin
         }
         promise.ui.activePrompt.screen.render('');
         promise.ui.activePrompt.render();
+        preSelected = selected;
     }
     return promise.ui.activePrompt.answers[promise.ui.activePrompt.opt.name];
 }

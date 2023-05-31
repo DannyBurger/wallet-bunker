@@ -55,6 +55,16 @@ const addAccount = (keyStorePath: string, accountObj: any) => {
     checkFileExistence(keyStorePath)
     const keystoreJsonString = fs.readFileSync(keyStorePath).toString();
     const data = JSON.parse(keystoreJsonString);
+
+    let account1 = accountObj.keystoreLst[0].address;
+    for (let i = 0; i < data.length; i++) {
+        let account0 = data[i].keystoreLst[0].address;
+        if (account0 === account1) {
+            console.log(`Account: ${account0}, is exist`);
+            return
+        }
+    }
+
     data.push(accountObj)
     fs.writeFileSync(keyStorePath, JSON.stringify(data))
 }

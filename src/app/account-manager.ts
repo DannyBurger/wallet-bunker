@@ -1,7 +1,7 @@
-import { selectSomething, inputSomething, inputPassword, ChainType, confirmSomething, listWithLazyBalanceLoading, setChangedAccount } from './input'
+import { selectSomething, inputSomething, inputPassword, ChainType, confirmSomething, listWithLazyBalanceLoading, setChangedAccount, } from './input'
 import { updateAccountBalanceOf } from './Web3';
-import { updateAccountTag, getAccountsTag } from './keystore';
-import { removeAccounts, checkPassword, resetPassword, list, generateAccountByMnemonic, generateAccountByPrivateKey, expandAccounts, getSubAccounts, getPrivateKeyByAccount, } from '../main'
+import { updateAccountTag, getAccountsTag, isExistAccountTag } from './keystore';
+import { removeAccounts, checkPassword, resetPassword, list, generateAccountByMnemonic, generateAccountByPrivateKey, expandAccounts, getSubAccounts, getPrivateKeyByAccount } from '../main'
 import { getAllNetWork, getDefaultNetWork } from './network';
 import inquirer from 'inquirer'
 import path from 'path';
@@ -10,7 +10,12 @@ import fs from 'fs';
 var defaultAccount: any = null;
 
 const showAccountDetailInfo = async (account: string, chainType: ChainType, keystorePath: string, password: string) => {
-    const optionList = ['> Add Tag', '> Show Private Key', '> Refresh Balance', '> Back'];
+    let optionList;
+    if (isExistAccountTag(keystorePath, account)) {
+        optionList = ['> Edit Tag', '> Show Private Key', '> Refresh Balance', '> Back'];
+    } else {
+        optionList = ['> Add Tag', '> Show Private Key', '> Refresh Balance', '> Back'];
+    }
     const something = await selectSomething(optionList);
     if (something === optionList[0]) {
         let tag: any = await inputSomething('Input account tag')

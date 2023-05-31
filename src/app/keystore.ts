@@ -107,6 +107,27 @@ const keystoresManager = async (keystorePath: string) => {
     await keystoresManager(keystorePath);
 }
 
+const isExistAccountTag = (keystorePath: string, account: string) => {
+    let tagPathName = path.resolve(path.dirname(keystorePath), 'tags.json');
+    let accountTagList: any = [];
+    if (!fs.existsSync(tagPathName)) {
+        return false;
+    }
+
+    let accountTagString: any = fs.readFileSync(tagPathName);
+    accountTagList = JSON.parse(accountTagString);
+    for (let i = 0; i < accountTagList.length; i++) {
+        if (accountTagList[i].account === account) {
+            if (accountTagList[i].tag) {
+                return true;
+            }
+            return false;
+        }
+    }
+
+    return false;
+}
+
 const updateAccountTag = (keystorePath: string, account: string, tag: string) => {
     let tagPathName = path.resolve(path.dirname(keystorePath), 'tags.json');
     let accountTagList: any = [];
@@ -160,5 +181,6 @@ export {
     getPasswordWithKeystoreId,
     checkKeystoreDir,
     updateAccountTag,
-    getAccountsTag
+    getAccountsTag,
+    isExistAccountTag
 }
