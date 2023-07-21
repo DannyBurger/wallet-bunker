@@ -1,6 +1,9 @@
 /* tslint:disable no-var-requires */
 const keythereum = require('keythereum')
 const CryptoJS = require('crypto-js')
+const {
+    generateKeystore
+} = require('../app/libs/generateKeystore');
 import fs from 'fs'
 import * as bip39 from '@metamask/bip39'
 import { hdkey } from 'ethereumjs-wallet'
@@ -164,7 +167,7 @@ const generateAccountByPrivateKey = (privateKey: string, password: string, keySt
     addAccount(keyStorePath, accountStorage)
 }
 
-const expandAccounts = (accountIndex: number, expandCount: number, password: string, keyStorePath: string) => {
+const expandAccounts = async (accountIndex: number, expandCount: number, password: string, keyStorePath: string) => {
     checkFileExistence(keyStorePath)
     const accounts = getAccounts(keyStorePath)
     if (!accounts[accountIndex].mnemonic) {
@@ -173,15 +176,7 @@ const expandAccounts = (accountIndex: number, expandCount: number, password: str
     const oldLen = accounts[accountIndex].keystoreLst.length
     const mnemonic = decryptMnemonic(accounts[accountIndex].mnemonic, password)
     const seed = bip39.mnemonicToSeedSync(mnemonic)
-    const hdWallet = hdkey.fromMasterSeed(seed)
-    const root = hdWallet.derivePath(hdPathString)
-    const keystoreLst = []
-    for (let i = oldLen; i < oldLen + expandCount; i++) {
-        const child = root.deriveChild(i)
-        const wallet = child.getWallet()
-        const keystore = getKeystoreByPrivateKey(wallet.getPrivateKey(), password)
-        keystoreLst.push(keystore)
-    }
+    const keystoreLst = await generateKeystore(seed, oldLen, expandCount, password);
     addAccounts(accountIndex, keystoreLst, keyStorePath)
 }
 

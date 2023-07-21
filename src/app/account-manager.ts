@@ -1,13 +1,16 @@
+import fs from 'fs';
+import path from 'path';
+import inquirer from 'inquirer'
+
 import { selectSomething, inputSomething, inputPassword, ChainType, confirmSomething, listWithLazyBalanceLoading, setChangedAccount, } from './input'
 import { updateAccountBalanceOf } from './Web3';
 import { updateAccountTag, getAccountsTag, isExistAccountTag } from './keystore';
 import { removeAccounts, checkPassword, resetPassword, list, generateAccountByMnemonic, generateAccountByPrivateKey, expandAccounts, getSubAccounts, getPrivateKeyByAccount } from '../main'
 import { getAllNetWork, getDefaultNetWork } from './network';
-import inquirer from 'inquirer'
-import path from 'path';
-import fs from 'fs';
+
 
 var defaultAccount: any = null;
+const MnemonicWords = require('./libs/mnemonic-words.json');
 
 const showAccountDetailInfo = async (account: string, chainType: ChainType, keystorePath: string, password: string) => {
     let optionList;
@@ -93,12 +96,34 @@ const showAccounts = async (keyStorePath: string, password: string, chainType: C
     await showAccounts(keyStorePath, password, chainType);
 }
 
+const checkMnenic = (mnemonic: string) => {
+    const mnemonicWordList = mnemonic.split(/\s+/g);
+    const mnemonicWordSize = mnemonicWordList.length;
+    if (mnemonicWordSize !== 12) {
+        return false;
+    }
+
+    for (let i = 0; i < mnemonicWordSize; i++) {
+        if (!MnemonicWords.includes(mnemonicWordList[i])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 const importAccount = async (password: string, keyStorePath: string) => {
     let options = ['1. Mnemonics', '2. PK', '3. Back'];
     const manageType = await selectSomething(options)
     if (manageType === options[0]) {
         let mnemonic = await inputSomething('Please enter a mnemonic [split by space]')
         mnemonic = mnemonic.replace(/\s+/g, " ");
+        const isVaildedMnemonic = checkMnenic(mnemonic);
+        if (!isVaildedMnemonic) {
+            console.log("Invalid mnemonic words");
+            return;
+        }
+
         generateAccountByMnemonic(mnemonic, password, keyStorePath)
     }
     if (manageType === options[1]) {
@@ -144,7 +169,7 @@ const _switchNetwork = async (keyStorePath: string) => {
 }
 
 const accountManage = async (password: string, keyStorePath: string, chainType: ChainType) => {
-    
+
     let options = ['1. List', '2. Add', '3. Expand', '4. Remove', '5. Reset Password', `6. Switch Network [${chainType.name} id:${chainType.chainId}]`, '7. Back'];
     const manageType = await selectSomething(options)
 
@@ -160,7 +185,7 @@ const accountManage = async (password: string, keyStorePath: string, chainType: 
         const index = Number(await inputSomething('Input account #'))
         const count = Number(await inputSomething('Expand accounts count'))
         try {
-            expandAccounts(index, count, password, keyStorePath)
+            await expandAccounts(index, count, password, keyStorePath)
         } catch (err: any) {
             console.log(err.message)
         }
